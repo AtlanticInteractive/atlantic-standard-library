@@ -26,7 +26,8 @@ function CameraState.new(cameraFrame, cameraFrameDerivative)
 		cameraFrame = CameraFrame.new(QFrame.FromCFrameClosestTo(cameraFrame.CFrame, QFrame.new()), cameraFrame.FieldOfView)
 	end
 
-	assert(cameraFrame == nil or CameraFrame.Is(cameraFrame), "Bad cameraFrame")
+	local localCameraFrame = cameraFrame
+	assert(localCameraFrame == nil or CameraFrame.Is(cameraFrame), "Bad cameraFrame")
 	assert(CameraFrame.Is(cameraFrameDerivative) or cameraFrameDerivative == nil, "Bad cameraFrameDerivative")
 
 	self.CameraFrame = cameraFrame or CameraFrame.new()

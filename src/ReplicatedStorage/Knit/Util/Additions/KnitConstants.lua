@@ -9,6 +9,7 @@ local KnitConstants = {
 
 	RAGDOLL_CONSTANTS = {
 		IS_MOTOR_ANIMATED_NAME = "IsMotorAnimated";
+		REMOTE_EVENT_NAME = "RagdollRemoteEvent";
 	};
 
 	TYPE_CHECKS = {

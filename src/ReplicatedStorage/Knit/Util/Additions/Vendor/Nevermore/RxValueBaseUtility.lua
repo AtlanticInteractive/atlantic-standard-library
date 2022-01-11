@@ -1,21 +1,50 @@
----
--- @module RxValueBaseUtils
--- @author Quenty
+--[=[
+	@class RxValueBaseUtility
+]=]
 
-local RxBrioUtils = require(script.Parent.RxBrioUtility)
-local RxInstanceUtils = require(script.Parent.RxInstanceUtility)
+local RxBrioUtility = require(script.Parent.RxBrioUtility)
+local RxInstanceUtility = require(script.Parent.RxInstanceUtility)
 
-local RxValueBaseUtils = {}
+local RxValueBaseUtility = {}
 
--- TODO: Handle default value/nothing there, instead of memory leaking!
-function RxValueBaseUtils.Observe(parent, className, name)
-	return RxInstanceUtils.ObserveLastNamedChildBrio(parent, className, name):Pipe({
-		RxBrioUtils.SwitchMap(RxValueBaseUtils.ObserveValue);
+--[=[
+	:::warning
+	This caches the last value seen, and may memory leak.
+	:::
+
+	@param parent Instance
+	@param className string
+	@param name string
+	@return Observable<any>
+	:::
+]=]
+function RxValueBaseUtility.Observe(Parent: Instance, ClassName: string, Name: string)
+	return RxInstanceUtility.ObserveLastNamedChildBrio(Parent, ClassName, Name):Pipe({
+		RxBrioUtility.SwitchMap(RxValueBaseUtility.ObserveValue);
 	})
 end
 
-function RxValueBaseUtils.ObserveValue(valueObject)
-	return RxInstanceUtils.ObserveProperty(valueObject, "Value")
+--[=[
+	Observes a value base underneath a parent (last named child).
+
+	@param parent Instance
+	@param className string
+	@param name string
+	@return Observable<Brio<any>>
+]=]
+function RxValueBaseUtility.ObserveBrio(Parent: Instance, ClassName: string, Name: string)
+	return RxInstanceUtility.ObserveLastNamedChildBrio(Parent, ClassName, Name):Pipe({
+		RxBrioUtility.SwitchMapBrio(RxValueBaseUtility.ObserveValue);
+	})
 end
 
-return RxValueBaseUtils
+--[=[
+	Observables a given value object's value
+	@param valueObject Instance
+	@return Observable<T>
+]=]
+function RxValueBaseUtility.ObserveValue(valueObject)
+	return RxInstanceUtility.ObserveProperty(valueObject, "Value")
+end
+
+return RxValueBaseUtility

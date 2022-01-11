@@ -5,4 +5,6 @@ Enumeration.ContainerStatus = {
 	NotReady = 200;
 }
 
+Enumeration.DataStoreHandler = {"ForceLoad", "Steal", "Repeat", "Cancel"}
+
 return Enumeration

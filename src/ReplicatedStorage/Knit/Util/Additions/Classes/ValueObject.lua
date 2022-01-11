@@ -6,6 +6,7 @@
 
 local Debug = require(script.Parent.Parent.Debugging.Debug)
 local Janitor = require(script.Parent.Parent.Parent.Janitor)
+local Observable = require(script.Parent.Parent.Vendor.Nevermore.Observable)
 local Signal = require(script.Parent.Parent.Parent.Signal)
 
 local ValueObject = {}
@@ -31,6 +32,28 @@ end
 ]=]
 function ValueObject.Is(Value)
 	return type(Value) == "table" and getmetatable(Value) == ValueObject
+end
+
+--[=[
+	Observes the current value of the ValueObject
+	@return Observable<T>
+]=]
+function ValueObject:Observe()
+	return Observable.new(function(Subscription)
+		if not self.Destroy then
+			warn("[ValueObject.Observe] - Connecting to dead ValueObject")
+			-- No firing, we're dead
+			return Subscription:Complete()
+		end
+
+		local ObserveJanitor = Janitor.new()
+		ObserveJanitor:Add(self.Changed:Connect(function()
+			Subscription:Fire(self.Value)
+		end), "Disconnect")
+
+		Subscription:Fire(self.Value)
+		return ObserveJanitor
+	end)
 end
 
 --[=[
