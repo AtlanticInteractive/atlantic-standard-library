@@ -1,0 +1,174 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local Knit = require(ReplicatedStorage.Knit)
+local CatchFactory = require(ReplicatedStorage.Knit.Util.Additions.Promises.CatchFactory)
+local Enumeration = require(ReplicatedStorage.Knit.Util.Additions.Enumeration)
+local Promise = require(ReplicatedStorage.Knit.Util.Promise)
+local PromiseChildOfClass = require(ReplicatedStorage.Knit.Util.Additions.Promises.PromiseChildOfClass)
+local Signal = require(ReplicatedStorage.Knit.Util.Signal)
+local Typer = require(ReplicatedStorage.Knit.Util.Additions.Debugging.Typer)
+
+local ContainerService = Knit.CreateService({
+	Client = {};
+	Name = "ContainerService";
+})
+
+ContainerService.Attribute = "__CONTAINER_ID__"
+ContainerService.Hashes = {}
+ContainerService.InstanceReferences = {}
+ContainerService.PendingContainers = {}
+ContainerService.RootContainers = {}
+
+ContainerService.PendingContainerCompleted = Signal.new()
+ContainerService.Client.RootContainerReady = Knit.CreateSignal()
+
+local PostSimulationEvent = RunService.Heartbeat
+local function LinkToInstanceLite(Object: Instance, Function: () -> ())
+	local Connection
+	Connection = Object:GetPropertyChangedSignal("Parent"):Connect(function()
+		PostSimulationEvent:Wait()
+		if not Connection.Connected then
+			Function()
+		end
+	end)
+end
+
+local function PlayerAdded(Player: Player)
+	local ContainerHash = HttpService:GenerateGUID()
+	local UserId = Player.UserId
+
+	ContainerService.Hashes[UserId] = ContainerHash
+	ContainerService.RootContainers[UserId] = Promise.new(function(Resolve)
+		local Container = Instance.new("ScreenGui")
+		Container.Name = ContainerHash
+		Container.ResetOnSpawn = false
+
+		PromiseChildOfClass(Player, "PlayerGui", 10):Then(function(PlayerGui: PlayerGui)
+			Container.Parent = PlayerGui
+		end):Catch(CatchFactory("PromiseChildOfClass")):Wait()
+
+		Resolve(Container)
+		ContainerService.Client.RootContainerReady:Fire(Player, ContainerHash)
+	end)
+end
+
+local function PlayerRemoving(Player: Player)
+	local UserId = Player.UserId
+	ContainerService.Hashes[UserId] = nil
+	ContainerService.RootContainers[UserId] = nil
+
+	for InstanceReference, CloneReferences in next, ContainerService.InstanceReferences do
+		for UserIdReference in next, CloneReferences do
+			if UserIdReference == UserId then
+				ContainerService.InstanceReferences[InstanceReference][UserIdReference] = nil
+			end
+		end
+	end
+end
+
+function ContainerService:GetContainer(Player: Player, ContainerId: string)
+	local UserId = Player.UserId
+	if not self.RootContainers[UserId] then
+		return Enumeration.ContainerStatus.NotReady.Value
+	end
+
+	if not self.PendingContainers[UserId] then
+		self.PendingContainers[UserId] = {}
+	end
+
+	return self.RootContainers[UserId]:Then(function(RootContainer)
+		local Container = RootContainer:FindFirstChild(ContainerId)
+		if Container then
+			return Container
+		else
+			if self.PendingContainers[UserId][ContainerId] then
+				return Promise.FromEvent(self.PendingContainerCompleted, function(PendingUserId, PendingContainerId)
+					return PendingUserId == UserId and PendingContainerId == ContainerId
+				end):Then(function()
+					return self:GetContainer(Player, ContainerId)
+				end)
+			end
+
+			self.PendingContainers[UserId][ContainerId] = true
+			Container = Instance.new("Folder")
+			Container:SetAttribute(self.Attribute, ContainerId)
+			Container.Name = ContainerId
+			Container.Parent = RootContainer
+
+			self.PendingContainers[UserId][ContainerId] = nil
+			self.PendingContainerCompleted:Fire(UserId, ContainerId)
+			return Container
+		end
+	end)
+end
+
+function ContainerService:ClearContainer(Player: Player, ContainerId: string)
+	return self:GetContainer(Player, ContainerId):Then(function(Container: Folder)
+		Container:ClearAllChildren()
+	end)
+end
+
+function ContainerService:ReplicateTo(Player: Player, ContainerId: string, Object: Instance)
+	local UserId = Player.UserId
+	if not self.InstanceReferences[Object] then
+		self.InstanceReferences[Object] = {}
+	end
+
+	if self.InstanceReferences[Object][UserId] then
+		return Promise.Resolve(self.InstanceReferences[Object][UserId])
+	end
+
+	return self:GetContainer(Player, ContainerId):Then(function(Container: Folder)
+		local CloneObject = Object:Clone()
+		self.InstanceReferences[Object][UserId] = CloneObject
+		CloneObject.Parent = Container
+
+		LinkToInstanceLite(CloneObject, function()
+			if self.InstanceReferences[Object][UserId] == CloneObject then
+				self.InstanceReferences[Object][UserId] = nil
+			end
+		end)
+
+		return CloneObject
+	end)
+end
+
+function ContainerService:DereplicateFrom(Player: Player, Object: Instance)
+	local UserId = Player.UserId
+	local InstanceReference = self.InstanceReferences[Object]
+
+	if InstanceReference and InstanceReference[UserId] then
+		InstanceReference[UserId]:Destroy()
+	end
+end
+
+function ContainerService.Client:RequestRootContainerHash(Player: Player): (string?, number)
+	local UserId = Player.UserId
+	local RootContainerHash = self.Server.Hashes[UserId]
+
+	if RootContainerHash then
+		return RootContainerHash, Enumeration.ContainerStatus.Success.Value
+	end
+
+	return nil, Enumeration.ContainerStatus.NotReady.Value
+end
+
+ContainerService.GetContainer = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.String, ContainerService.GetContainer)
+ContainerService.ClearContainer = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.String, ContainerService.ClearContainer)
+ContainerService.ReplicateTo = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.String, Typer.Instance, ContainerService.DereplicateFrom)
+ContainerService.DereplicateFrom = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.Instance, ContainerService.DereplicateFrom)
+ContainerService.Client.RequestRootContainerHash = Typer.AssignSignature(2, Typer.InstanceWhichIsAPlayer, ContainerService.Client.RequestRootContainerHash)
+
+function ContainerService:KnitInit()
+	for _, Player in ipairs(Players:GetPlayers()) do
+		task.spawn(PlayerAdded, Player)
+	end
+
+	Players.PlayerAdded:Connect(PlayerAdded)
+	Players.PlayerRemoving:Connect(PlayerRemoving)
+end
+
+return ContainerService

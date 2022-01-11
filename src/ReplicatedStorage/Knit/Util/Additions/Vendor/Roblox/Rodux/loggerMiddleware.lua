@@ -1,0 +1,17 @@
+-- We want to be able to override outputFunction in tests, so the shape of this
+-- module is kind of unconventional.
+--
+-- We fix it this weird shape in init.lua.
+local prettyPrint = require(script.Parent.prettyPrint)
+local loggerMiddleware = {}
+loggerMiddleware.outputFunction = print
+
+function loggerMiddleware.middleware(nextDispatch, store)
+	return function(action)
+		local result = nextDispatch(action)
+		loggerMiddleware.outputFunction(string.format("Action dispatched: %s\nState changed to: %s", prettyPrint(action), prettyPrint(store:getState())))
+		return result
+	end
+end
+
+return loggerMiddleware

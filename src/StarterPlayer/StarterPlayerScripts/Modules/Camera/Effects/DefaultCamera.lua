@@ -1,0 +1,91 @@
+--[=[
+	Hack to maintain default camera control by binding before and after the camera update cycle
+	This allows other cameras to build off of the "default" camera while maintaining the same Roblox control scheme.
+
+	This camera is automatically setup by the [CameraStackService](/api/CameraStackService).
+	@class DefaultCamera
+]=]
+
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+
+local CameraState = require(script.Parent.Parent.CameraState)
+local SummedCamera = require(script.Parent.SummedCamera)
+
+local DefaultCamera = {}
+DefaultCamera.ClassName = "DefaultCamera"
+
+--[=[
+	Constructs a new DefaultCamera
+
+	@return DefaultCamera
+]=]
+function DefaultCamera.new()
+	local self = setmetatable({}, DefaultCamera)
+	self._cameraState = CameraState.new(Workspace.CurrentCamera)
+	return self
+end
+
+function DefaultCamera:__add(other)
+	return SummedCamera.new(self, other)
+end
+
+--[=[
+	Overrides the global field of view in the cached camera state
+	@param fieldOfView number
+]=]
+function DefaultCamera:OverrideGlobalFieldOfView(fieldOfView)
+	self._cameraState.FieldOfView = fieldOfView
+end
+
+function DefaultCamera:OverrideCameraState(cameraState)
+	self._cameraState = cameraState or error("No CameraState")
+end
+
+--[=[
+	Binds the camera to RunService RenderStepped event.
+
+	:::tip
+	Be sure to call UnbindFromRenderStep when using this.
+	:::
+]=]
+function DefaultCamera:BindToRenderStep()
+	RunService:BindToRenderStep("DefaultCamera_Preupdate", Enum.RenderPriority.Camera.Value - 2, function()
+		self._cameraState:Set(Workspace.CurrentCamera)
+	end)
+
+	RunService:BindToRenderStep("DefaultCamera_PostUpdate", Enum.RenderPriority.Camera.Value + 2, function()
+		self._cameraState = CameraState.new(Workspace.CurrentCamera)
+	end)
+
+	self._cameraState = CameraState.new(Workspace.CurrentCamera)
+end
+
+--[=[
+	Unbinds the camera from the RunService
+]=]
+function DefaultCamera:UnbindFromRenderStep()
+	RunService:UnbindFromRenderStep("DefaultCamera_Preupdate")
+	RunService:UnbindFromRenderStep("DefaultCamera_PostUpdate")
+end
+
+--[=[
+	The current state.
+	@readonly
+	@prop CameraState CameraState
+	@within DefaultCamera
+]=]
+function DefaultCamera:__index(index)
+	if index == "CameraState" then
+		return rawget(self, "_cameraState")
+	else
+		return DefaultCamera[index]
+	end
+end
+
+function DefaultCamera:__tostring()
+	return "DefaultCamera"
+end
+
+table.freeze(DefaultCamera)
+return DefaultCamera
