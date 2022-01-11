@@ -205,7 +205,7 @@ function NetworkClock.DefaultNoHttp()
 	return DefaultNetworkClockNoHttp
 end
 
-function NetworkClock:GetInitalizedPromise()
+function NetworkClock:GetInitializedPromise()
 	return Promise.Try(function()
 		return self.Init:Expect()
 	end)

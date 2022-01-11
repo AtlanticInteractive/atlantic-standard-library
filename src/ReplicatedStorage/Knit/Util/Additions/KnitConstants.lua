@@ -3,6 +3,11 @@ local t = require(script.Parent.Vendor.t)
 local OptionalVector = t.optional(t.union(t.Vector2, t.Vector3))
 
 local KnitConstants = {
+	COOLDOWN_CONSTANTS = {
+		COOLDOWN_START_TIME_ATTRIBUTE = "CooldownStartTime";
+		COOLDOWN_TIME_NAME = "CooldownTime";
+	};
+
 	IK_CONSTANTS = {
 		REMOTE_EVENT_NAME = "IKRigRemoteEvent";
 	};
