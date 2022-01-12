@@ -1,3 +1,13 @@
+--[=[
+	[ContainerService](https://github.com/csqrl/containerservice-knit/) by csqrl. ContainerService is a Service and Controller pair for Sleitnick's Knit framework,
+	which allows for selective replication to clients. This means that an Instance can be replicated to a specific client without it being replicated to any other client.
+
+	ContainerService handles replication to individual clients.
+
+	@server
+	@class ContainerService
+]=]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
@@ -17,12 +27,37 @@ local ContainerService = Knit.CreateService({
 })
 
 ContainerService.Attribute = "__CONTAINER_ID__"
-ContainerService.Hashes = {}
-ContainerService.InstanceReferences = {}
 ContainerService.PendingContainers = {}
+
+--[=[
+	@prop Hashes {[UserId]: HashString}
+	@within ContainerService
+]=]
+ContainerService.Hashes = {}
+
+--[=[
+	@prop InstanceReferences {[BaseInstance]: {[UserId]: CloneInstance}}
+	@within ContainerService
+]=]
+ContainerService.InstanceReferences = {}
+
+--[=[
+	@prop RootContainers {[UserId]: RootContainerScreenGui}
+	@within ContainerService
+]=]
 ContainerService.RootContainers = {}
 
+--[=[
+	@prop PendingContainerCompleted Signal<UserId: number, ContainerId: string>
+	@within ContainerService
+]=]
 ContainerService.PendingContainerCompleted = Signal.new()
+
+--[=[
+	@prop RootContainerReady RemoteSignal<Hash: string>
+	@tag Client
+	@within ContainerService
+]=]
 ContainerService.Client.RootContainerReady = Knit.CreateSignal()
 
 local PostSimulationEvent = RunService.Heartbeat
@@ -69,6 +104,12 @@ local function PlayerRemoving(Player: Player)
 	end
 end
 
+--[=[
+	Gets the Container for the given Player and ContainerId.
+	@param Player Player
+	@param ContainerId string
+	@return Promise<Folder>
+]=]
 function ContainerService:GetContainer(Player: Player, ContainerId: string)
 	local UserId = Player.UserId
 	if not self.RootContainers[UserId] then
@@ -105,12 +146,25 @@ function ContainerService:GetContainer(Player: Player, ContainerId: string)
 	end)
 end
 
+--[=[
+	Clears the Container for the given Player and ContainerId.
+	@param Player Player
+	@param ContainerId string
+	@return Promise<void>
+]=]
 function ContainerService:ClearContainer(Player: Player, ContainerId: string)
 	return self:GetContainer(Player, ContainerId):Then(function(Container: Folder)
 		Container:ClearAllChildren()
 	end)
 end
 
+--[=[
+	Replicates the given Object to the Player with the ContainerId.
+	@param Player Player
+	@param ContainerId string
+	@param Object Instance
+	@return Promise<Instance>
+]=]
 function ContainerService:ReplicateTo(Player: Player, ContainerId: string, Object: Instance)
 	local UserId = Player.UserId
 	if not self.InstanceReferences[Object] then
@@ -136,6 +190,11 @@ function ContainerService:ReplicateTo(Player: Player, ContainerId: string, Objec
 	end)
 end
 
+--[=[
+	Dereplicates the Object from the Player.
+	@param Player Player
+	@param Object Instance
+]=]
 function ContainerService:DereplicateFrom(Player: Player, Object: Instance)
 	local UserId = Player.UserId
 	local InstanceReference = self.InstanceReferences[Object]
@@ -145,6 +204,13 @@ function ContainerService:DereplicateFrom(Player: Player, Object: Instance)
 	end
 end
 
+--[=[
+	Requests the root container hash for the player.
+	@tag Client
+	@param Player Player -- You do not need to pass this on the client, it'll automatically be passed.
+	@return Hash string?
+	@return StatusCode number
+]=]
 function ContainerService.Client:RequestRootContainerHash(Player: Player): (string?, number)
 	local UserId = Player.UserId
 	local RootContainerHash = self.Server.Hashes[UserId]
@@ -159,7 +225,7 @@ end
 ContainerService.GetContainer = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.String, ContainerService.GetContainer)
 ContainerService.ClearContainer = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.String, ContainerService.ClearContainer)
 ContainerService.ReplicateTo = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.String, Typer.Instance, ContainerService.DereplicateFrom)
-ContainerService.DereplicateFrom = Typer.PromiseAssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.Instance, ContainerService.DereplicateFrom)
+ContainerService.DereplicateFrom = Typer.AssignSignature(2, Typer.InstanceWhichIsAPlayer, Typer.Instance, ContainerService.DereplicateFrom)
 ContainerService.Client.RequestRootContainerHash = Typer.AssignSignature(2, Typer.InstanceWhichIsAPlayer, ContainerService.Client.RequestRootContainerHash)
 
 function ContainerService:KnitInit()

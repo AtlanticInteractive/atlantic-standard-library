@@ -32,7 +32,7 @@ ContainerController.RootContainerPending = nil
 ContainerController.RootContainerPendingCompleted = Signal.new()
 
 --[=[
-	@prop Containers Dictionary<ContainerId: string, Container: Folder>
+	@prop Containers {[ContainerIdString]: ContainerFolder}
 	@within ContainerController
 ]=]
 ContainerController.Containers = {}
