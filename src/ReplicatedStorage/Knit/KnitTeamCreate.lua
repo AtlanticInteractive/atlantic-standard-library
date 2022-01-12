@@ -1,3 +1,4 @@
+-- Knit just dies if you accidentally require it on team create, so this exists.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
