@@ -1,3 +1,10 @@
+--[=[
+	Holds camera states and allows for the last camera state to be retrieved. Also
+	initializes an impulse and default camera as the bottom of the stack. Is a singleton.
+
+	@class CameraStackController
+]=]
+
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterPlayerScripts = game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts")
@@ -144,7 +151,6 @@ end
 	Retrieves the index of a state
 	@param state CameraEffect
 	@return number? -- index
-
 ]=]
 function CameraStackController:GetIndex(State)
 	return table.find(self.Stack, State)
