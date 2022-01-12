@@ -169,11 +169,11 @@ function ParticleController:Add(Properties: ParticleProperties)
 	local RemoveOnCollisionIsString = type(RemoveOnCollision) == "string"
 
 	if FunctionIsString then
-		Properties.Function = assert(self.Functions[Function], string.format("Function %q doesn't exist.", Function))
+		Properties.Function = assert(self.ParticleFunctions[Function], string.format("Function %q doesn't exist.", Function))
 	end
 
 	if RemoveOnCollisionIsString then
-		Properties.RemoveOnCollision = assert(self.Functions[RemoveOnCollision], string.format("Function %q doesn't exist.", RemoveOnCollision))
+		Properties.RemoveOnCollision = assert(self.RemoveFunctions[RemoveOnCollision], string.format("Function %q doesn't exist.", RemoveOnCollision))
 	end
 
 	Properties.Position = Properties.Position or EMPTY_VECTOR3
