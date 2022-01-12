@@ -108,12 +108,7 @@ function SoftShutdownService:KnitInit()
 					OnShutdownFunction()
 				end
 
-				-- -- stylua: ignore
-				-- repeat until Knit.Services.GameService or not task.wait()
-				-- task.wait(0.5)
-
-				-- Knit.Services.GameService:ReleaseProfiles()
-				--TeleportPromise.PromiseTeleportToPrivateServer(game.PlaceId, ReservedServerCode, Players:GetPlayers()):Catch(CatchFactory("TeleportPromise.PromiseTeleportToPrivateServer")):Wait()
+				TeleportPromise.PromiseTeleportToPrivateServer(game.PlaceId, ReservedServerCode, Players:GetPlayers()):Catch(CatchFactory("TeleportPromise.PromiseTeleportToPrivateServer")):Wait()
 			end):Catch(CatchFactory("TeleportPromise.PromiseReserveServer")):Wait()
 
 			while #Players:GetPlayers() > 0 do
