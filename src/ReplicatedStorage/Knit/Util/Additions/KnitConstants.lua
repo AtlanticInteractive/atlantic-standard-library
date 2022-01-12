@@ -28,11 +28,6 @@ export type ParticleFunctionOrString = ParticleFunction | string
 export type RemoveOnCollisionOrStringOrTrue = RemoveOnCollision | string | boolean
 
 local KnitConstants = {
-	COOLDOWN_CONSTANTS = {
-		COOLDOWN_START_TIME_ATTRIBUTE = "CooldownStartTime";
-		COOLDOWN_TIME_NAME = "CooldownTime";
-	};
-
 	IK_CONSTANTS = {
 		REMOTE_EVENT_NAME = "IKRigRemoteEvent";
 	};

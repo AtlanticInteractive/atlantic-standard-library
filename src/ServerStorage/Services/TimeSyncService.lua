@@ -1,6 +1,9 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+--[=[
+	Synchronizes time.
+	@class TimeSyncService
+]=]
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Knit = require(ReplicatedStorage.Knit)
 local TimeFunctions = require(ReplicatedStorage.Knit.Util.Additions.Utility.TimeFunctions)
 local Timer = require(ReplicatedStorage.Knit.Util.Timer)
@@ -13,9 +16,7 @@ local TimeSyncService = Knit.CreateService({
 TimeSyncService.Client.SyncTime = Knit.CreateSignal()
 
 function TimeSyncService:IsSynced()
-	if not RunService:IsRunning() then
-		return true
-	end
+	return true
 end
 
 function TimeSyncService:GetTime()

@@ -12,63 +12,67 @@ local IdleController = Knit.CreateController({
 	Name = "IdleController";
 })
 
-IdleController.Janitor = Janitor.new()
-IdleController.DisabledStack = IdleController.Janitor:Add(StateStack.new(), "Destroy")
-IdleController.HumanoidTracker = nil
-IdleController.Enabled = IdleController.Janitor:Add(Instance.new("BoolValue"), "Destroy") :: BoolValue
-IdleController.Enabled.Value = true
+local ControllerJanitor = Janitor.new()
+local DisabledStack = ControllerJanitor:Add(StateStack.new(), "Destroy")
+local HumanoidTracker = nil
+local Enabled = ControllerJanitor:Add(Instance.new("BoolValue"), "Destroy") :: BoolValue
+Enabled.Value = true
 
-IdleController.ShowIdleUI = IdleController.Janitor:Add(Instance.new("BoolValue"), "Destroy") :: BoolValue
-IdleController.HumanoidIdle = IdleController.Janitor:Add(Instance.new("BoolValue"), "Destroy") :: BoolValue
+local ShowIdleUI = ControllerJanitor:Add(Instance.new("BoolValue"), "Destroy") :: BoolValue
+local HumanoidIdle = ControllerJanitor:Add(Instance.new("BoolValue"), "Destroy") :: BoolValue
 
 local STANDING_TIME_REQUIRED = 0.5
 
 local function UpdateShowIdleUI()
-	IdleController.ShowIdleUI.Value = IdleController.HumanoidIdle.Value and IdleController.Enabled.Value and not VRService.VREnabled
+	ShowIdleUI.Value = HumanoidIdle.Value and Enabled.Value and not VRService.VREnabled
 end
 
 local function HandleAliveHumanoidChanged()
-	local Humanoid = IdleController.HumanoidTracker.AliveHumanoid.Value
+	local Humanoid = HumanoidTracker.AliveHumanoid.Value
 	if not Humanoid then
-		IdleController.Janitor:Remove("HumanoidJanitor")
+		ControllerJanitor:Remove("HumanoidJanitor")
 	else
-		local HumanoidJanitor = IdleController.Janitor:Add(Janitor.new(), "Destroy", "HumanoidJanitor")
+		local HumanoidJanitor = ControllerJanitor:Add(Janitor.new(), "Destroy", "HumanoidJanitor")
 		local LastMove = TimeFunctions.TimeFunction()
 
 		HumanoidJanitor:Add(function()
-			IdleController.HumanoidIdle.Value = false
+			HumanoidIdle.Value = false
 		end, true)
 
-		HumanoidJanitor:Add(IdleController.Enabled.Changed:Connect(function()
+		HumanoidJanitor:Add(Enabled.Changed:Connect(function()
 			LastMove = TimeFunctions.TimeFunction()
 		end), "Disconnect")
 
 		HumanoidJanitor:Add(RunService.Stepped:Connect(function()
 			local RootPart = Humanoid.RootPart
-			if RootPart and RootPart.AssemblyLinearVelocity.Magnitude > 2.5 then
+			if IdleController.RagdollBinders.Ragdoll:Get(Humanoid) then
 				LastMove = TimeFunctions.TimeFunction()
+			elseif RootPart then
+				if RootPart.AssemblyLinearVelocity.Magnitude > 2.5 then
+					LastMove = TimeFunctions.TimeFunction()
+				end
 			end
 
-			IdleController.HumanoidIdle.Value = TimeFunctions.TimeFunction() - LastMove >= STANDING_TIME_REQUIRED
+			HumanoidIdle.Value = TimeFunctions.TimeFunction() - LastMove >= STANDING_TIME_REQUIRED
 		end), "Disconnect")
 	end
 end
 
 function IdleController:IsHumanoidIdle()
-	return self.HumanoidIdle.Value
+	return HumanoidIdle.Value
 end
 
 function IdleController:DoShowIdleUI()
-	return self.ShowIdleUI.Value
+	return ShowIdleUI.Value
 end
 
 function IdleController:GetShowIdleUI()
-	return self.ShowIdleUI
+	return ShowIdleUI
 end
 
 function IdleController:PushDisable()
 	if RunService:IsRunning() then
-		return self.DisabledStack:PushState()
+		return DisabledStack:PushState()
 	else
 		return function() end
 	end
@@ -76,24 +80,33 @@ end
 
 function IdleController:KnitStart()
 	GetController.Option("HumanoidTrackerController"):Match({
-		Some = function(HumanoidTrackerController)
-			self.HumanoidTracker = HumanoidTrackerController:GetHumanoidTracker()
-			self.Janitor:Add(self.HumanoidIdle.Changed:Connect(UpdateShowIdleUI), "Disconnect")
-			self.Janitor:Add(self.Enabled.Changed:Connect(UpdateShowIdleUI), "Disconnect")
-			self.Janitor:Add(self.HumanoidTracker.AliveHumanoid.Changed:Connect(HandleAliveHumanoidChanged), "Disconnect")
-			self.Janitor:Add(self.DisabledStack.Changed:Connect(function()
-				self.Enabled.Value = not self.DisabledStack:GetState()
-			end), "Disconnect")
-
-			if self.HumanoidTracker.AliveHumanoid.Value then
-				HandleAliveHumanoidChanged()
-			end
-
-			UpdateShowIdleUI()
-		end;
-
 		None = function()
 			warn("[IdleController.KnitStart] - Couldn't get HumanoidTrackerController!")
+		end;
+
+		Some = function(HumanoidTrackerController)
+			GetController.Option("RagdollController"):Match({
+				None = function()
+					warn("[IdleController.KnitStart] - Couldn't get RagdollController!")
+				end;
+
+				Some = function(RagdollController)
+					self.RagdollBinders = RagdollController.RagdollBinders
+					HumanoidTracker = HumanoidTrackerController:GetHumanoidTracker()
+					ControllerJanitor:Add(HumanoidIdle.Changed:Connect(UpdateShowIdleUI), "Disconnect")
+					ControllerJanitor:Add(Enabled.Changed:Connect(UpdateShowIdleUI), "Disconnect")
+					ControllerJanitor:Add(HumanoidTracker.AliveHumanoid.Changed:Connect(HandleAliveHumanoidChanged), "Disconnect")
+					ControllerJanitor:Add(DisabledStack.Changed:Connect(function()
+						Enabled.Value = not DisabledStack:GetState()
+					end), "Disconnect")
+
+					if HumanoidTracker.AliveHumanoid.Value then
+						HandleAliveHumanoidChanged()
+					end
+
+					UpdateShowIdleUI()
+				end;
+			})
 		end;
 	})
 end

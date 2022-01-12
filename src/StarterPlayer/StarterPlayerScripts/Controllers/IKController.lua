@@ -1,3 +1,10 @@
+--[=[
+	Handles IK for local client.
+
+	@client
+	@class IKController
+]=]
+
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,7 +23,7 @@ local IKController = Knit.CreateController({
 
 --[=[
 	Retrieves an IKRig. Binds the rig if it isn't already bound.
-	@param humanoid Humanoid
+	@param Humanoid Humanoid
 	@return IKRigClient?
 ]=]
 function IKController:GetRig(Humanoid: Humanoid)
@@ -26,7 +33,7 @@ end
 
 --[=[
 	Retrieves an IKRig. Binds the rig if it isn't already bound.
-	@param humanoid Humanoid
+	@param Humanoid Humanoid
 	@return Promise<IKRigClient>
 ]=]
 function IKController:PromiseRig(Humanoid: Humanoid)
@@ -49,10 +56,10 @@ end
 	end)
 	```
 
-	@param position Vector3? -- May be nil to set no position
-	@param optionalPriority number
+	@param Position Vector3? -- May be nil to set no position
+	@param OptionalPriority number?
 ]=]
-function IKController:SetAimPosition(Position, OptionalPriority: number?)
+function IKController:SetAimPosition(Position: Vector3?, OptionalPriority: number?)
 	if Position ~= Position then
 		return warn("[IKController.SetAimPosition] - position is NaN")
 	end
@@ -74,16 +81,16 @@ end
 	serviceBag:GetService(require("IKController")):SetLookAround(false)
 	```
 
-	@param lookAround boolean
+	@param LookAround boolean
 ]=]
-function IKController:SetLookAround(LookAround)
+function IKController:SetLookAround(LookAround: boolean)
 	self.LookAround = LookAround
 end
 
 --[=[
 	Retrieves the local aimer for the local player.
 
-	@return IKRigAimerLocalPlayer
+	@return Option<IKRigAimerLocalPlayer>
 ]=]
 function IKController:GetLocalAimer()
 	return self:GetLocalPlayerRig():Then(function(Rig)
@@ -94,7 +101,7 @@ end
 --[=[
 	Attempts to retrieve the local player's ik rig, if it exists.
 
-	@return IKRigClient?
+	@return Option<IKRigClient>
 ]=]
 function IKController:GetLocalPlayerRig()
 	return IKRigUtility.GetPlayerIKRig(assert(self.IkBinders.IKRig, "Not initialize"), Players.LocalPlayer)
