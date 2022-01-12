@@ -11,7 +11,6 @@ local Promise = require(script.Parent.Parent.Parent.Promise)
 	Returns a promise that resolves when the class is bound to the instance.
 	@param binder Binder<T>
 	@param inst Instance
-	@param cancelToken CancelToken
 	@return Promise<T>
 	@function promiseBoundClass
 	@within promiseBoundClass
