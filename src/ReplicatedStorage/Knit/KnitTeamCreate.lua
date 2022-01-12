@@ -19,27 +19,27 @@ function Knit.CreateService(ServiceDefinition)
 	return ServiceDefinition
 end
 
-function Knit.GetService(ServiceName: string)
+function Knit.GetService(_ServiceName: string)
 	return {}
 end
 
-function Knit.GetController(ControllerName: string)
+function Knit.GetController(_ControllerName: string)
 	return {}
 end
 
-function Knit.AddControllers(Parent: Instance)
+function Knit.AddControllers(_Parent: Instance)
 	return {}
 end
 
-function Knit.AddControllersDeep(Parent: Instance)
+function Knit.AddControllersDeep(_Parent: Instance)
 	return {}
 end
 
-function Knit.AddServices(Parent: Instance)
+function Knit.AddServices(_Parent: Instance)
 	return {}
 end
 
-function Knit.AddServicesDeep(Parent: Instance)
+function Knit.AddServicesDeep(_Parent: Instance)
 	return {}
 end
 
