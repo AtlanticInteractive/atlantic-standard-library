@@ -1,3 +1,13 @@
+--[=[
+	[ContainerService](https://github.com/csqrl/containerservice-knit/) by csqrl. ContainerService is a Service and Controller pair for Sleitnick's Knit framework,
+	which allows for selective replication to clients. This means that an Instance can be replicated to a specific client without it being replicated to any other client.
+
+	ContainerController receives replicated instances from the server and emits events regarding transactions.
+
+	@client
+	@class ContainerController
+]=]
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local RunService = game:GetService("RunService")
@@ -17,12 +27,27 @@ local ContainerController = Knit.CreateController({
 
 ContainerController.Attribute = "__CONTAINER_ID__"
 ContainerController.ContainerPendingCompleted = Signal.new()
-ContainerController.Containers = {}
 ContainerController.ContainersPending = {}
-ContainerController.ItemReplicated = Signal.new()
-ContainerController.RootContainer = nil
 ContainerController.RootContainerPending = nil
 ContainerController.RootContainerPendingCompleted = Signal.new()
+
+--[=[
+	@prop Containers Dictionary<ContainerId: string, Container: Folder>
+	@within ContainerController
+]=]
+ContainerController.Containers = {}
+
+--[=[
+	@prop ItemReplicated Signal<ContainerId: string, Instance: Instance>
+	@within ContainerController
+]=]
+ContainerController.ItemReplicated = Signal.new()
+
+--[=[
+	@prop RootContainer ScreenGui?
+	@within ContainerController
+]=]
+ContainerController.RootContainer = nil
 
 local PostSimulation = RunService.Heartbeat
 local function LinkToInstanceLite(Object: Instance, Function: () -> ())
@@ -41,6 +66,10 @@ local function RequestRootContainerHashPromise()
 	end)
 end
 
+--[=[
+	Used to get the RootContainer.
+	@return Promise<ScreenGui>
+]=]
 function ContainerController:GetRootContainer()
 	local ContainerService = GetService.Default("ContainerService")
 
@@ -101,6 +130,11 @@ local function ProcessChildAdded(ContainerId: string, Child: Instance)
 	ContainerController.ItemReplicated:Fire(ContainerId, Child)
 end
 
+--[=[
+	Used to get a container for the given ContainerId.
+	@param ContainerId string
+	@return Promise<Folder>
+]=]
 function ContainerController:GetContainer(ContainerId: string)
 	if self.Containers[ContainerId] then
 		return Promise.Resolve(self.Containers[ContainerId])
@@ -125,7 +159,7 @@ function ContainerController:GetContainer(ContainerId: string)
 			end)
 
 			for _, Child in ipairs(Container:GetChildren()) do
-				task.spawn(ProcessChildAdded, self, ContainerId, Child)
+				task.spawn(ProcessChildAdded, ContainerId, Child)
 			end
 
 			Container.ChildAdded:Connect(function(Child)
