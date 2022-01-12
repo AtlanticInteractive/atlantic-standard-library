@@ -22,7 +22,7 @@ export type ParticleProperties = {
 	RemoveOnCollision: RemoveOnCollisionOrStringOrTrue?,
 }
 
-export type ParticleFunction = (self: ParticleProperties, DeltaTime: number, WorldTime: number) -> boolean
+export type ParticleFunction = (self: ParticleProperties, DeltaTime: number, WorldTime: number) -> ()
 export type RemoveOnCollision = (self: ParticleProperties, RaycastResult: RaycastResult) -> boolean
 export type ParticleFunctionOrString = ParticleFunction | string
 export type RemoveOnCollisionOrStringOrTrue = RemoveOnCollision | string | boolean

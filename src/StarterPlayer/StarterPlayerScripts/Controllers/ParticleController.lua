@@ -19,6 +19,12 @@ local ParticleController = Knit.CreateController({
 	Name = "ParticleController";
 })
 
+type ParticleFunction = Constants.ParticleFunction
+type ParticleFunctionOrString = Constants.ParticleFunctionOrString
+type ParticleProperties = Constants.ParticleProperties
+type RemoveOnCollision = Constants.RemoveOnCollision
+type RemoveOnCollisionOrStringOrTrue = Constants.RemoveOnCollisionOrStringOrTrue
+
 --[=[
 	@type Vector Vector2 | Vector3
 	@within ParticleController
@@ -96,12 +102,11 @@ end
 
 local Update
 
---[[**
-	Removes a Particle from the ParticleEngine.
-	@param [t:IProperties] Properties The particle you want to remove.
-	@returns [t:void]
-**--]]
-function ParticleController:Remove(Properties)
+--[=[
+	Removes a particle.
+	@param Properties ParticleProperties
+]=]
+function ParticleController:Remove(Properties: ParticleProperties)
 	local TypeSuccess, TypeError = IProperties(Properties)
 	if not TypeSuccess then
 		error(TypeError, 2)
@@ -140,12 +145,12 @@ local WHITE_COLOR3 = Color3.new(1, 1, 1)
 }
 --]]
 
---[[**
-	Adds a Particle to the ParticleEngine. See the script to find the properties.
-	@param [t:IParticle] Particle The particle you want to add.
-	@returns [t:void]
-**--]]
-function ParticleController:Add(Properties)
+--[=[
+	Adds a new particle.
+	@param Properties ParticleProperties
+	@return ParticleProperties
+]=]
+function ParticleController:Add(Properties: ParticleProperties)
 	local TypeSuccess, TypeError = IProperties(Properties)
 	if not TypeSuccess then
 		error(TypeError, 2)
@@ -193,7 +198,10 @@ function ParticleController:Add(Properties)
 		Properties.RemoveOnCollision = BackupRemoveOnCollision
 	end
 
-	Properties.Lifetime = Properties.Lifetime and Properties.Lifetime + time()
+	local Lifetime = Properties.Lifetime
+	if Lifetime then
+		Properties.Lifetime = Lifetime + time()
+	end
 
 	local Particles = self.Particles
 	local ParticleCount = self.ParticleCount
@@ -208,8 +216,25 @@ function ParticleController:Add(Properties)
 	return Properties
 end
 
-function ParticleController:RegisterFunction(FunctionName: string, Function)
-	self.Functions[FunctionName] = Function
+--[=[
+	Registers a particle function to the ParticleController.
+	@param FunctionName string -- The name of the particle function.
+	@param ParticleFunction ParticleFunction? -- The particle function. Use nil to remove.
+	@return ParticleController
+]=]
+function ParticleController:RegisterParticleFunction(FunctionName: string, ParticleFunction: ParticleFunction?)
+	self.ParticleFunctions[FunctionName] = ParticleFunction
+	return self
+end
+
+--[=[
+	Registers a RemoveOnCollision function to the ParticleController.
+	@param FunctionName string -- The name of the particle function.
+	@param RemoveOnCollision RemoveOnCollision? -- The RemoveOnCollision function. Use nil to remove.
+	@return ParticleController
+]=]
+function ParticleController:RegisterRemoveOnCollision(FunctionName: string, RemoveOnCollision: RemoveOnCollision?)
+	self.RemoveFunctions[FunctionName] = RemoveOnCollision
 	return self
 end
 
