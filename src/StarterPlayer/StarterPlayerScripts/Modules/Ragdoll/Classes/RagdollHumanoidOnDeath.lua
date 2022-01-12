@@ -26,6 +26,7 @@ RagdollHumanoidOnDeathClient.__index = RagdollHumanoidOnDeathClient
 ]=]
 function RagdollHumanoidOnDeathClient.new(Humanoid: Humanoid)
 	local self = setmetatable(BaseObject.new(Humanoid), RagdollHumanoidOnDeathClient)
+	self.EnableFading = false
 	self.RagdollBinder = RagdollBinders.Ragdoll
 
 	if self.Object:GetState() == Enum.HumanoidStateType.Dead then
@@ -51,15 +52,17 @@ function RagdollHumanoidOnDeathClient:HandleDeath()
 		end;
 	})
 
-	local Character = self.Object.Parent
-	task.delay(Players.RespawnTime - 0.5, function()
-		if not Character:IsDescendantOf(Workspace) then
-			return
-		end
+	if self.EnableFading then
+		local Character = self.Object.Parent
+		task.delay(Players.RespawnTime - 0.5, function()
+			if not Character:IsDescendantOf(Workspace) then
+				return
+			end
 
-		-- fade into the mist...
-		RagdollRigging.DisableParticleEmittersAndFadeOutYielding(Character, 0.4)
-	end)
+			-- fade into the mist...
+			RagdollRigging.DisableParticleEmittersAndFadeOutYielding(Character, 0.4)
+		end)
+	end
 end
 
 function RagdollHumanoidOnDeathClient:__tostring()

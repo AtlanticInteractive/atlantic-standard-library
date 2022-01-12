@@ -1,3 +1,10 @@
+--[=[
+	Legacy code written by AxisAngles to simulate particles with Guis
+
+	@client
+	@class ParticleController
+]=]
+
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,15 +19,68 @@ local ParticleController = Knit.CreateController({
 	Name = "ParticleController";
 })
 
-ParticleController.Functions = {}
+--[=[
+	@type Vector Vector2 | Vector3
+	@within ParticleController
+	A vector data type.
+]=]
+
+--[=[
+	@type ParticleFunction string | (self: ParticleProperties, DeltaTime: number, WorldTime: number) -> ()
+	@within ParticleController
+	The function type for a particle. Passing a string will expect a function that exists in the table `ParticleFunctions`.
+]=]
+
+--[=[
+	@type RemoveOnCollision boolean | string | (self: ParticleProperties, RaycastResult: RaycastResult) -> boolean
+	@within ParticleController
+	The RemoveOnCollision function type for a particle. Passing a string will expect a function that exists in the table `RemoveFunctions`, passing a boolean will make sure it always removes when collided with.
+]=]
+
+--[=[
+	@interface ParticleProperties
+	@within ParticleController
+	.Position Vector3 -- The position of the particle.
+	.Bloom Vector? -- The bloom of the particle. Defaults to `Vector2.zero`.
+	.Color Color3? -- The color of the particle. Defaults to `Color3.new(1, 1, 1)`.
+	.Function ParticleFunction? -- The function of the particle.
+	.Global boolean? -- Whether or not the particle is global.
+	.Gravity Vector3? -- The gravity of the particle. Defaults to `Vector3.zero`.
+	.Lifetime number? -- The lifetime of the particle.
+	.Occlusion boolean? -- Whether the particle is occluded.
+	.RemoveOnCollision RemoveOnCollision? -- Whether or not the particle should be removed on collision.
+	.Size Vector? -- The size of the particle. Defaults to `Vector2.new(0.2, 0.2)`.
+	.Transparency number? -- The transparency of the particle. Defaults to `0.5`.
+	.Velocity Vector3? -- The velocity of the particle. Defaults to `Vector3.zero`.
+	.WindResistance number? -- The wind resistance of the particle.
+]=]
+
+ParticleController.ParticleFunctions = {}
+ParticleController.RemoveFunctions = {}
+
+--[=[
+	@prop MaxParticles IntValue
+	@within ParticleController
+	The maximum amount of particles that can be created at once. Changing this will reallocate.
+]=]
 ParticleController.MaxParticles = Instance.new("IntValue")
 ParticleController.MaxParticles.Value = 400
 
+--[=[
+	@prop ParticleCount int
+	@within ParticleController
+	The current amount of particles.
+]=]
 ParticleController.ParticleCount = 0
 ParticleController.ParticleFrames = table.create(ParticleController.MaxParticles.Value)
 ParticleController.Particles = {}
 
-ParticleController.WindSpeed = Instance.new("IntValue")
+--[=[
+	@prop WindSpeed NumberValue
+	@within ParticleController
+	The wind speed of the particles.
+]=]
+ParticleController.WindSpeed = Instance.new("NumberValue")
 ParticleController.WindSpeed.Value = 10
 
 local LocalPlayer = Players.LocalPlayer

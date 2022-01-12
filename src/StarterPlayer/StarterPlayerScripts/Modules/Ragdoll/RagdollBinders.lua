@@ -47,7 +47,7 @@ return BinderProvider.new(function(self)
 
 	--[=[
 	Automatically applies ragdoll upon humanoid death.
-	@prop RagdollaRagdollHumanoidOnDeathble Binder<RagdollHumanoidOnDeathClient>
+	@prop RagdollHumanoidOnDeath Binder<RagdollHumanoidOnDeathClient>
 	@within RagdollBindersClient
 ]=]
 	self:Add(Binder.new("RagdollHumanoidOnDeath", FastRequire(script.Parent.Classes.RagdollHumanoidOnDeath)))

@@ -1,3 +1,17 @@
+--[=[
+	Handles the replication of inverse kinematics (IK) from clients to servers
+
+	* Supports animation playback on top of existing animations
+	* Battle-tested code
+	* Handles streaming enabled
+	* Supports NPCs
+	* Client-side animations scale with distance
+	* Client-side animations keep thinks silky
+
+	@server
+	@class IKService
+]=]
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")

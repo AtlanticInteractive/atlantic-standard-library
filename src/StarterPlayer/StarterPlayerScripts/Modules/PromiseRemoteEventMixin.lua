@@ -51,7 +51,7 @@ end
 	@return Promise<RemoteEvent>
 ]=]
 function PromiseRemoteEventMixin:PromiseRemoteEvent()
-	return self.Janitor:AddPromise(PromiseChild(self.Object, self.RemoteEventName))
+	return self.Janitor:AddPromise(PromiseChild(self.Object, self.RemoteEventName, 15))
 end
 
 return PromiseRemoteEventMixin

@@ -11,7 +11,7 @@ local RunService = game:GetService("RunService")
 
 local Janitor = require(ReplicatedStorage.Knit.Util.Janitor)
 local JsonToLocalizationTable = require(ReplicatedStorage.Knit.Util.Additions.Utility.JsonToLocalizationTable)
-local LocalizationServiceUtility = require(StarterPlayerScripts:WaitForChild("Modules"):WaitForChild("LocalizationServiceUtility"))
+local LocalizationServiceUtility = require(StarterPlayerScripts:WaitForChild("Modules"):WaitForChild("Utility"):WaitForChild("LocalizationServiceUtility"))
 local Observable = require(ReplicatedStorage.Knit.Util.Additions.Vendor.Nevermore.Observable)
 local Promise = require(ReplicatedStorage.Knit.Util.Promise)
 local PseudoLocalize = require(ReplicatedStorage.Knit.Util.Additions.Utility.PseudoLocalize)

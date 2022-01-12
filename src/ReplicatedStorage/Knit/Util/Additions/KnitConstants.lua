@@ -1,6 +1,31 @@
 local t = require(script.Parent.Vendor.t)
-
 local OptionalVector = t.optional(t.union(t.Vector2, t.Vector3))
+
+type VectorType = Vector2 | Vector3
+
+export type ParticleProperties = {
+	Position: Vector3,
+
+	-- Optional
+	Bloom: VectorType?,
+	Color: Color3?,
+	Global: boolean?,
+	Gravity: Vector3?,
+	Lifetime: number?,
+	Occlusion: boolean?,
+	Size: VectorType?,
+	Transparency: number?,
+	Velocity: Vector3?,
+	WindResistance: number?,
+
+	Function: ParticleFunctionOrString?,
+	RemoveOnCollision: RemoveOnCollisionOrStringOrTrue?,
+}
+
+export type ParticleFunction = (self: ParticleProperties, DeltaTime: number, WorldTime: number) -> boolean
+export type RemoveOnCollision = (self: ParticleProperties, RaycastResult: RaycastResult) -> boolean
+export type ParticleFunctionOrString = ParticleFunction | string
+export type RemoveOnCollisionOrStringOrTrue = RemoveOnCollision | string | boolean
 
 local KnitConstants = {
 	COOLDOWN_CONSTANTS = {
