@@ -28,7 +28,8 @@ function PlayerHumanoidBinder:SetAutomaticTagging(ShouldTag)
 end
 
 function PlayerHumanoidBinder:Start()
-	local Results = {getmetatable(PlayerHumanoidBinder).Start(self)}
+	local Metatable = getmetatable(PlayerHumanoidBinder)
+	local Results = {Metatable.Start(self)}
 
 	self.Janitor:Add(self.ShouldTag.Changed:Connect(function()
 		self:_BindTagging(true)
