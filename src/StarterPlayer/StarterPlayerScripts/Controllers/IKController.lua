@@ -21,6 +21,8 @@ local IKController = Knit.CreateController({
 	Name = "IKController";
 })
 
+IKController.LookAround = true
+
 --[=[
 	Retrieves an IKRig. Binds the rig if it isn't already bound.
 	@param Humanoid Humanoid
@@ -110,17 +112,16 @@ end
 function IKController:KnitStart()
 	self.IkBinders:Start()
 
-	local AIMER_MATCH = {
-		None = function() end;
-		Some = function(LocalAimer)
-			LocalAimer:SetLookAround(self.LookAround)
-			LocalAimer:UpdateStepped()
-		end;
-	}
-
 	local function OnStepped()
 		debug.profilebegin("IKUpdate")
-		self:GetLocalAimer():Match(AIMER_MATCH)
+		self:GetLocalAimer():Match({
+			None = function() end;
+			Some = function(LocalAimer)
+				LocalAimer:SetLookAround(self.LookAround)
+				LocalAimer:UpdateStepped()
+			end;
+		})
+
 		local CameraPosition = Workspace.CurrentCamera.CFrame.Position
 
 		for _, Rig in ipairs(self.IkBinders.IKRig:GetAll()) do

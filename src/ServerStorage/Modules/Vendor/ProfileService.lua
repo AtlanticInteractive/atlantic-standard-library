@@ -206,9 +206,9 @@ local RunService = game:GetService("RunService")
 local Enumeration = require(ReplicatedStorage.Knit.Util.Additions.Enumeration)
 local Janitor = require(ReplicatedStorage.Knit.Util.Janitor)
 local Promise = require(ReplicatedStorage.Knit.Util.Promise)
+local StringRep = require(ReplicatedStorage.Knit.Util.Additions.Utility.StringRep)
 
 local SETTINGS = {
-
 	AutoSaveProfiles = 30; -- Seconds (This value may vary - ProfileService will split the auto save load evenly in the given time)
 	RobloxWriteCooldown = 7; -- Seconds between successive DataStore calls for the same key
 	ForceLoadMaxSteps = 8; -- Steps taken before ForceLoad request steals the active session for a profile
@@ -262,6 +262,7 @@ do
 			_is_connected = is_connected,
 		--]]
 	}
+
 	ScriptConnection.ClassName = "ScriptConnection"
 	ScriptConnection.__index = ScriptConnection
 
@@ -636,7 +637,7 @@ local function NewMockDataStoreKeyInfo(params)
 	return {
 		CreatedTime = params.CreatedTime;
 		UpdatedTime = params.UpdatedTime;
-		Version = string.rep("0", 16) .. "." .. string.rep("0", 10 - #version_id_string) .. version_id_string .. "." .. string.rep("0", 16) .. "." .. "01";
+		Version = StringRep("0", 16) .. "." .. StringRep("0", 10 - #version_id_string) .. version_id_string .. "." .. StringRep("0", 16) .. "." .. "01";
 
 		GetMetadata = function()
 			return DeepCopyTable(meta_data)
@@ -812,7 +813,7 @@ local function StandardProfileUpdateAsyncDataStore(profile_store, profile_key, u
 		-- Return loaded_data:
 		return loaded_data, key_info
 	else
-		RegisterIssue((error_message ~= nil) and error_message or "Undefined error", profile_store._profile_store_name, profile_store._profile_store_scope, profile_key)
+		RegisterIssue(error_message ~= nil and error_message or "Undefined error", profile_store._profile_store_name, profile_store._profile_store_scope, profile_key)
 		-- Return nothing:
 		return nil
 	end
@@ -836,7 +837,7 @@ local function AddProfileToAutoSave(profile) -- Notice: Makes sure this profile 
 	-- Add at AutoSaveIndex and move AutoSaveIndex right:
 	table.insert(AutoSaveList, AutoSaveIndex, profile)
 	if #AutoSaveList > 1 then
-		AutoSaveIndex = AutoSaveIndex + 1
+		AutoSaveIndex += 1
 	elseif #AutoSaveList == 1 then
 		-- First profile created - make sure it doesn't get immediately auto saved:
 		LastAutoSave = os.clock()
@@ -946,7 +947,7 @@ local function SaveProfileAsync(profile, release_from_session, is_overwriting)
 		ReleaseProfileInternally(profile)
 	end
 
-	ActiveProfileSaveJobs = ActiveProfileSaveJobs + 1
+	ActiveProfileSaveJobs += 1
 	local last_session_load_count = profile.Metadata.SessionLoadCount
 	-- Compare "SessionLoadCount" when writing to profile to prevent a rare case of repeat last save when the profile is loaded on the same server again
 	local repeat_save_flag = true -- Released Profile save calls have to repeat until they succeed
@@ -1091,7 +1092,7 @@ local function SaveProfileAsync(profile, release_from_session, is_overwriting)
 		end
 	end
 
-	ActiveProfileSaveJobs = ActiveProfileSaveJobs - 1
+	ActiveProfileSaveJobs -= 1
 end
 
 ----- Public functions -----
@@ -1485,8 +1486,7 @@ function Profile:Save()
 	end
 
 	if self:IsActive() == false then
-		warn("[ProfileService]: Attempted saving an inactive profile " .. self:Identify() .. "; Traceback:\n" .. debug.traceback())
-		return
+		return warn("[ProfileService]: Attempted saving an inactive profile " .. self:Identify() .. "; Traceback:\n" .. debug.traceback())
 	end
 
 	-- Reject save request if a save is already pending in the queue - this will prevent the user from
@@ -1560,8 +1560,7 @@ end
 
 function Profile:RemoveUserId(user_id) -- Disassociates user_id with profile (safe function)
 	if type(user_id) ~= "number" or user_id % 1 ~= 0 then
-		warn("[ProfileService]: Invalid UserId argument for :RemoveUserId() (" .. tostring(user_id) .. "); Traceback:\n" .. debug.traceback())
-		return
+		return warn("[ProfileService]: Invalid UserId argument for :RemoveUserId() (" .. tostring(user_id) .. "); Traceback:\n" .. debug.traceback())
 	end
 
 	local index = table.find(self.UserIds, user_id)
@@ -1794,7 +1793,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 		end
 	end
 
-	ActiveProfileLoadJobs = ActiveProfileLoadJobs + 1
+	ActiveProfileLoadJobs += 1
 	local force_load = not_released_handler == Enumeration.DataStoreHandler.ForceLoad
 	local force_load_steps = 0
 	local request_force_load = force_load -- First step of ForceLoad
@@ -1820,7 +1819,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 				loaded_data, key_info = table.unpack(profile_load_job[2])
 				profile_load_jobs[profile_key] = nil
 			else
-				ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+				ActiveProfileLoadJobs -= 1
 				return nil
 			end
 		else
@@ -1892,7 +1891,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 				loaded_data, key_info = table.unpack(profile_load_job[2])
 				profile_load_jobs[profile_key] = nil
 			else
-				ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+				ActiveProfileLoadJobs -= 1
 				return nil -- Load job grabbed
 			end
 		end
@@ -1962,11 +1961,11 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 					-- Special case - finished loading profile, but session is shutting down:
 					if ProfileService.ServiceLocked == true then
 						SaveProfileAsync(profile, true) -- Release profile and yield until the DataStore call is finished
-						profile = nil -- nil will be returned by this call
+						profile = nil :: any -- nil will be returned by this call
 					end
 
 					-- Return Profile object:
-					ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+					ActiveProfileLoadJobs -= 1
 					return profile
 				else
 					-- Case #2: Profile is taken by some other session:
@@ -1979,7 +1978,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 
 						if force_load_uninterrupted == true then
 							if request_force_load == false then
-								force_load_steps = force_load_steps + 1
+								force_load_steps += 1
 								if force_load_steps == SETTINGS.ForceLoadMaxSteps then
 									steal_session = true
 								end
@@ -1988,7 +1987,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 							task.wait() -- Overload prevention
 						else
 							-- Another session tried to force load this profile:
-							ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+							ActiveProfileLoadJobs -= 1
 							return nil
 						end
 
@@ -2000,7 +1999,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 						if handler_result == Enumeration.DataStoreHandler.Repeat then
 							task.wait() -- Overload prevention
 						elseif handler_result == Enumeration.DataStoreHandler.Cancel then
-							ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+							ActiveProfileLoadJobs -= 1
 							return nil
 						elseif handler_result == Enumeration.DataStoreHandler.ForceLoad then
 							force_load = true
@@ -2015,7 +2014,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 					end
 				end
 			else
-				ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+				ActiveProfileLoadJobs -= 1
 				return nil -- In this scenario it is likely the ProfileService.ServiceLocked flag was raised
 			end
 		else
@@ -2023,7 +2022,7 @@ function ProfileStore:LoadProfile(profile_key, not_released_handler, _use_mock) 
 		end
 	end
 
-	ActiveProfileLoadJobs = ActiveProfileLoadJobs - 1
+	ActiveProfileLoadJobs -= 1
 	return nil -- If loop breaks return nothing
 end
 
@@ -2060,7 +2059,6 @@ function ProfileStore:GlobalUpdateProfile(profile_key, update_handler, _use_mock
 		-- Handling loaded_data:
 		if loaded_data ~= nil then
 			-- Return GlobalUpdates object (Update successful):
-
 			return setmetatable({
 				_updates_latest = loaded_data.GlobalUpdates;
 			}, GlobalUpdates)
@@ -2188,7 +2186,7 @@ function ProfileStore:ProfileVersionQuery(profile_key, sort_direction, min_date,
 	end
 
 	-- Type check:
-	if sort_direction ~= nil and typeof(sort_direction) ~= "EnumItem" or sort_direction.EnumType ~= Enum.SortDirection then
+	if sort_direction ~= nil and typeof(sort_direction :: any) ~= "EnumItem" or sort_direction.EnumType ~= Enum.SortDirection then
 		error("[ProfileService]: Invalid sort_direction (" .. tostring(sort_direction) .. ")")
 	end
 
@@ -2428,7 +2426,7 @@ RunService.Heartbeat:Connect(function()
 				profile = nil
 				for _ = 1, auto_save_list_length - 1 do
 					-- Move auto save index to the right:
-					AutoSaveIndex = AutoSaveIndex + 1
+					AutoSaveIndex += 1
 					if AutoSaveIndex > auto_save_list_length then
 						AutoSaveIndex = 1
 					end
@@ -2443,7 +2441,7 @@ RunService.Heartbeat:Connect(function()
 			end
 
 			-- Move auto save index to the right:
-			AutoSaveIndex = AutoSaveIndex + 1
+			AutoSaveIndex += 1
 			if AutoSaveIndex > auto_save_list_length then
 				AutoSaveIndex = 1
 			end
@@ -2504,10 +2502,10 @@ task.spawn(function()
 			-- Release the profiles; Releasing profiles can trigger listeners that release other profiles, so check active state:
 			for _, profile in ipairs(active_profiles) do
 				if profile:IsActive() == true then
-					on_close_save_job_count = on_close_save_job_count + 1
+					on_close_save_job_count += 1
 					task.spawn(function() -- Save profile on new thread
 						SaveProfileAsync(profile, true)
-						on_close_save_job_count = on_close_save_job_count - 1
+						on_close_save_job_count -= 1
 					end)
 				end
 			end
