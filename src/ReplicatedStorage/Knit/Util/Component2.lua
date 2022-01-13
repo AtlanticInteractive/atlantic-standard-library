@@ -17,7 +17,7 @@ type AncestorList = {Instance}
 	@type ExtensionFn (component) -> nil
 	@within Component
 ]=]
-type ExtensionFn = (any) -> ()
+type ExtensionFn = (any) -> nil
 
 --[=[
 	@type ExtensionShouldFn (component) -> boolean
@@ -63,17 +63,11 @@ type ExtensionShouldFn = (any) -> boolean
 	```lua
 	local Logger = {}
 	function Logger.Constructing(component) print("Constructing", component) end
-
 	function Logger.Constructed(component) print("Constructed", component) end
-
 	function Logger.Starting(component) print("Starting", component) end
-
 	function Logger.Started(component) print("Started", component) end
-
 	function Logger.Stopping(component) print("Stopping", component) end
-
 	function Logger.Stopped(component) print("Stopped", component) end
-
 
 	local MyComponent = Component.new({Tag = "MyComponent", Extensions = {Logger}})
 	```
@@ -92,7 +86,6 @@ type ExtensionShouldFn = (any) -> boolean
 		return ownerId == player.UserId
 	end
 
-
 	local MyComponent = Component.new({Tag = "MyComponent", Extensions = {OnlyLocalPlayer}})
 	```
 
@@ -104,7 +97,6 @@ type ExtensionShouldFn = (any) -> boolean
 	function Logger.ShouldExtend(component)
 		return component.Instance:GetAttribute("Log") == true
 	end
-
 	```
 ]=]
 type Extension = {
@@ -168,6 +160,7 @@ local DEFAULT_ANCESTORS = {Workspace, Players}
 -- Symbol keys:
 local KEY_ANCESTORS = Symbol.new("Ancestors")
 local KEY_INST_TO_COMPONENTS = Symbol.new("InstancesToComponents")
+local KEY_LOCK_CONSTRUCT = Symbol.new("LockConstruct")
 local KEY_COMPONENTS = Symbol.new("Components")
 local KEY_JANITOR = Symbol.new("Janitor")
 local KEY_EXTENSIONS = Symbol.new("Extensions")
@@ -208,7 +201,6 @@ local function GetActiveExtensions(component, extensionList)
 	local allActive = true
 	for _, extension in ipairs(extensionList) do
 		local fn = extension.ShouldExtend
-
 		local shouldExtend = type(fn) ~= "function" or not not fn(component)
 		if shouldExtend then
 			table.insert(activeExtensions, extension)
@@ -257,41 +249,36 @@ Component.__index = Component
 		self.MyData = "Hello"
 	end
 
-
 	function MyComponent:Start()
 		local another = self:GetComponent(AnotherComponent)
 		another:DoSomething()
 	end
 
-
 	function MyComponent:Stop()
 		self.MyData = "Goodbye"
 	end
 
-
 	function MyComponent:HeartbeatUpdate(dt)
 	end
-
 
 	function MyComponent:SteppedUpdate(dt)
 	end
 
-
 	function MyComponent:RenderSteppedUpdate(dt)
 	end
-
 	```
 ]=]
 function Component.new(config: ComponentConfig)
 	local customComponent = {}
 	customComponent.__index = customComponent
-	customComponent.__tostring = function()
+	function customComponent:__tostring()
 		return "Component<" .. config.Tag .. ">"
 	end
 
 	customComponent[KEY_ANCESTORS] = config.Ancestors or DEFAULT_ANCESTORS
 	customComponent[KEY_INST_TO_COMPONENTS] = {}
 	customComponent[KEY_COMPONENTS] = {}
+	customComponent[KEY_LOCK_CONSTRUCT] = {}
 	customComponent[KEY_JANITOR] = Janitor.new()
 	customComponent[KEY_EXTENSIONS] = config.Extensions or {}
 	customComponent[KEY_STARTED] = false
@@ -398,22 +385,40 @@ function Component:_setup()
 		self.Stopped:Fire(component)
 	end
 
+	local function SafeConstruct(instance, id)
+		if self[KEY_LOCK_CONSTRUCT][instance] ~= id then
+			return nil
+		end
+
+		local component = self:_instantiate(instance)
+		if self[KEY_LOCK_CONSTRUCT][instance] ~= id then
+			return nil
+		end
+
+		return component
+	end
+
 	local function TryConstructComponent(instance)
 		if self[KEY_INST_TO_COMPONENTS][instance] then
 			return
 		end
 
-		local component = self:_instantiate(instance)
-		if not component then
-			return
-		end
-
-		self[KEY_INST_TO_COMPONENTS][instance] = component
-		table.insert(self[KEY_COMPONENTS] :: any, component)
+		local id = self[KEY_LOCK_CONSTRUCT][instance] or 0
+		id += 1
+		self[KEY_LOCK_CONSTRUCT][instance] = id
 		task.defer(function()
-			if self[KEY_INST_TO_COMPONENTS][instance] == component then
-				StartComponent(component)
+			local component = SafeConstruct(instance, id)
+			if not component then
+				return
 			end
+
+			self[KEY_INST_TO_COMPONENTS][instance] = component
+			table.insert(self[KEY_COMPONENTS] :: any, component)
+			task.defer(function()
+				if self[KEY_INST_TO_COMPONENTS][instance] == component then
+					StartComponent(component)
+				end
+			end)
 		end)
 	end
 
@@ -424,6 +429,7 @@ function Component:_setup()
 		end
 
 		self[KEY_INST_TO_COMPONENTS][instance] = nil
+		self[KEY_LOCK_CONSTRUCT][instance] = nil
 		local components = self[KEY_COMPONENTS]
 		local index = table.find(components, component)
 		if index then
@@ -466,6 +472,10 @@ function Component:_setup()
 		end
 	end
 
+	local function InstanceTagged(instance: Instance)
+		StartWatchingInstance(instance)
+	end
+
 	local function InstanceUntagged(instance: Instance)
 		local watchHandle = watchingInstances[instance]
 		if watchHandle then
@@ -476,11 +486,11 @@ function Component:_setup()
 		TryDeconstructComponent(instance)
 	end
 
-	self[KEY_JANITOR]:Add(CollectionService:GetInstanceAddedSignal(self.Tag):Connect(StartWatchingInstance), "Disconnect")
+	self[KEY_JANITOR]:Add(CollectionService:GetInstanceAddedSignal(self.Tag):Connect(InstanceTagged), "Disconnect")
 	self[KEY_JANITOR]:Add(CollectionService:GetInstanceRemovedSignal(self.Tag):Connect(InstanceUntagged), "Disconnect")
 
 	for _, instance in ipairs(CollectionService:GetTagged(self.Tag)) do
-		task.defer(StartWatchingInstance, instance)
+		task.defer(InstanceTagged, instance)
 	end
 end
 
@@ -500,7 +510,6 @@ end
 	for _,component in ipairs(components) do
 		component:DoSomethingHere()
 	end
-
 	```
 ]=]
 function Component:GetAll()
@@ -518,7 +527,6 @@ end
 		self.SomeData = 32
 		self.OtherStuff = "HelloWorld"
 	end
-
 	```
 ]=]
 function Component:Construct() end
@@ -535,7 +543,6 @@ function Component:Construct() end
 		-- e.g., grab another component:
 		local another = self:GetComponent(AnotherComponent)
 	end
-
 	```
 ]=]
 function Component:Start() end
@@ -555,7 +562,6 @@ function Component:Start() end
 	function MyComponent:Stop()
 		self.SomeStuff:Destroy()
 	end
-
 	```
 ]=]
 function Component:Stop() end
@@ -574,7 +580,6 @@ function Component:Stop() end
 	function MyComponent:Start()
 		local another = self:GetComponent(AnotherComponent)
 	end
-
 	```
 ]=]
 function Component:GetComponent(componentClass)
@@ -599,7 +604,6 @@ end
 
 	function MyComponent:HeartbeatUpdate(dt)
 	end
-
 	```
 ]=]
 --[=[
@@ -620,7 +624,6 @@ end
 
 	function MyComponent:SteppedUpdate(dt)
 	end
-
 	```
 ]=]
 --[=[
@@ -647,7 +650,6 @@ end
 
 	function MyComponent:RenderSteppedUpdate(dt)
 	end
-
 	```
 	```lua
 	-- Example that uses `RunService:BindToRenderStep` automatically:
@@ -659,13 +661,10 @@ end
 
 	function MyComponent:RenderSteppedUpdate(dt)
 	end
-
 	```
 ]=]
-
 function Component:Destroy()
 	self[KEY_JANITOR]:Destroy()
-	setmetatable(self, nil)
 end
 
 return Component
