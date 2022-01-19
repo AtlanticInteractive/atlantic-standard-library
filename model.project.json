@@ -1,0 +1,34 @@
+{
+	"name": "atlantic-standard-library",
+	"globIgnorePaths": ["**/*.spec.lua"],
+	"tree": {
+		"$className": "Folder",
+		"ReplicatedStorage": {
+			"$className": "Folder",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ReplicatedStorage"
+		},
+
+		"ServerScriptService": {
+			"$className": "Folder",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ServerScriptService"
+		},
+
+		"ServerStorage": {
+			"$className": "Folder",
+			"$ignoreUnknownInstances": true,
+			"$path": "src/ServerStorage"
+		},
+
+		"StarterPlayer": {
+			"$className": "Folder",
+			"$ignoreUnknownInstances": true,
+			"StarterPlayerScripts": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true,
+				"$path": "src/StarterPlayer/StarterPlayerScripts"
+			}
+		}
+	}
+}
