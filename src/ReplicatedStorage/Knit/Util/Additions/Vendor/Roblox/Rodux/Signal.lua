@@ -29,18 +29,14 @@ local function immutableRemoveValue(list, removeValue)
 end
 
 local Signal = {}
-
+Signal.ClassName = "Signal"
 Signal.__index = Signal
 
 function Signal.new(store)
-	local self = {
-		_listeners = {},
-		_store = store,
-	}
-
-	setmetatable(self, Signal)
-
-	return self
+	return setmetatable({
+		_listeners = {};
+		_store = store;
+	}, Signal)
 end
 
 function Signal:connect(callback)
@@ -53,10 +49,10 @@ function Signal:connect(callback)
 	end
 
 	local listener = {
-		callback = callback,
-		disconnected = false,
-		connectTraceback = debug.traceback(),
-		disconnectTraceback = nil,
+		callback = callback;
+		disconnected = false;
+		connectTraceback = debug.traceback();
+		disconnectTraceback = nil;
 	}
 
 	self._listeners = immutableAppend(self._listeners, listener)
@@ -76,7 +72,7 @@ function Signal:connect(callback)
 	end
 
 	return {
-		disconnect = disconnect,
+		disconnect = disconnect;
 	}
 end
 
