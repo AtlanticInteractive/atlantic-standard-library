@@ -996,10 +996,10 @@ end
 	:::
 
 	```lua
-		Promise.Delay(5):ThenCall(print, "This prints after 5 seconds")
+		Promise.delay(5):andThenCall(print, "This prints after 5 seconds")
 	```
 
-	@function Delay
+	@function delay
 	@within Promise
 	@param seconds number
 	@return Promise<number>

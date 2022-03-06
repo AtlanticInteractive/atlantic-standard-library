@@ -2,22 +2,13 @@
 -- Stephen Leitnick
 -- November 26, 2021
 
-local Workspace = game:GetService("Workspace")
-local Players = game:GetService("Players")
-local CollectionService = game:GetService("CollectionService")
-local RunService = game:GetService("RunService")
-
-local Janitor = require(script.Parent.Janitor)
-local Signal = require(script.Parent.Signal)
-local Symbol = require(script.Parent.Symbol)
-
 type AncestorList = {Instance}
 
 --[=[
-	@type ExtensionFn (component) -> nil
+	@type ExtensionFn (component) -> ()
 	@within Component
 ]=]
-type ExtensionFn = (any) -> nil
+type ExtensionFn = (any) -> ()
 
 --[=[
 	@type ExtensionShouldFn (component) -> boolean
@@ -129,8 +120,10 @@ type ComponentConfig = {
 }
 
 --[=[
-	@prop Started Signal
 	@within Component
+	@prop Started Signal
+	@tag Event
+	@tag Component Class
 
 	Fired when a new instance of a component is started.
 
@@ -142,8 +135,10 @@ type ComponentConfig = {
 ]=]
 
 --[=[
-	@prop Stopped Signal
 	@within Component
+	@prop Stopped Signal
+	@tag Event
+	@tag Component Class
 
 	Fired when an instance of a component is stopped.
 
@@ -154,8 +149,36 @@ type ComponentConfig = {
 	```
 ]=]
 
+--[=[
+	@tag Component Instance
+	@within Component
+	@prop Instance Instance
+
+	A reference back to the _Roblox_ instance from within a _component_ instance. When
+	a component instance is created, it is bound to a specific Roblox instance, which
+	will always be present through the `Instance` property.
+
+	```lua
+	MyComponent.Started:Connect(function(component)
+		local robloxInstance: Instance = component.Instance
+		print("Component is bound to " .. robloxInstance:GetFullName())
+	end)
+	```
+]=]
+
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+
+local Janitor = require(script.Parent.Janitor)
+local Promise = require(script.Parent.Promise)
+local Signal = require(script.Parent.Signal)
+local Symbol = require(script.Parent.Symbol)
+
 local IS_SERVER = RunService:IsServer()
 local DEFAULT_ANCESTORS = {Workspace, Players}
+local DEFAULT_TIMEOUT = 60
 
 -- Symbol keys:
 local KEY_ANCESTORS = Symbol.new("Ancestors")
@@ -216,12 +239,20 @@ end
 	@class Component
 
 	Bind components to Roblox instances using the Component class and CollectionService tags.
+
+	To avoid confusion of terms:
+	- `Component` refers to this module.
+	- `Component Class` (e.g. `MyComponent` through this documentation) refers to a class created via `Component.new`
+	- `Component Instance` refers to an instance of a component class.
+	- `Roblox Instance` refers to the Roblox instance to which the component instance is bound.
+
+	Methods and properties are tagged with the above terms to help clarify the level at which they are used.
 ]=]
 local Component = {}
-Component.ClassName = "Component"
 Component.__index = Component
 
 --[=[
+	@tag Component
 	@param config ComponentConfig
 	@return ComponentClass
 
@@ -290,24 +321,6 @@ function Component.new(config: ComponentConfig)
 	return customComponent
 end
 
---[=[
-	@param instance Instance
-	@param componentClass ComponentClass
-	@return Component?
-
-	Gets an instance of a component class given the Roblox instance
-	and the component class. Returns `nil` if not found.
-
-	```lua
-	local MyComponent = require(somewhere.MyComponent)
-
-	local myComponentInstance = Component.FromInstance(workspace.SomeInstance, MyComponent)
-	```
-]=]
-function Component.FromInstance(instance: Instance, componentClass)
-	return componentClass[KEY_INST_TO_COMPONENTS][instance]
-end
-
 function Component:_instantiate(instance: Instance)
 	local component = setmetatable({}, self)
 	component.Instance = instance
@@ -349,8 +362,8 @@ function Component:_setup()
 
 		if hasRenderSteppedUpdate and not IS_SERVER then
 			if component.RenderPriority then
-				self._renderName = NextRenderName()
-				RunService:BindToRenderStep(self._renderName, component.RenderPriority, function(dt)
+				component._renderName = NextRenderName()
+				RunService:BindToRenderStep(component._renderName, component.RenderPriority, function(dt)
 					component:RenderSteppedUpdate(dt)
 				end)
 			else
@@ -376,7 +389,7 @@ function Component:_setup()
 		if component._renderSteppedUpdate then
 			component._renderSteppedUpdate:Disconnect()
 		elseif component._renderName then
-			RunService:UnbindFromRenderStep(self._renderName)
+			RunService:UnbindFromRenderStep(component._renderName)
 		end
 
 		InvokeExtensionFn(component, "Stopping")
@@ -413,7 +426,7 @@ function Component:_setup()
 			end
 
 			self[KEY_INST_TO_COMPONENTS][instance] = component
-			table.insert(self[KEY_COMPONENTS] :: any, component)
+			table.insert(self[KEY_COMPONENTS] :: {Instance}, component)
 			task.defer(function()
 				if self[KEY_INST_TO_COMPONENTS][instance] == component then
 					StartComponent(component)
@@ -449,7 +462,7 @@ function Component:_setup()
 		end
 
 		local function IsInAncestorList(): boolean
-			for _, parent in ipairs(self[KEY_ANCESTORS] :: any) do
+			for _, parent in ipairs(self[KEY_ANCESTORS] :: {Instance}) do
 				if instance:IsDescendantOf(parent) then
 					return true
 				end
@@ -472,10 +485,6 @@ function Component:_setup()
 		end
 	end
 
-	local function InstanceTagged(instance: Instance)
-		StartWatchingInstance(instance)
-	end
-
 	local function InstanceUntagged(instance: Instance)
 		local watchHandle = watchingInstances[instance]
 		if watchHandle then
@@ -486,15 +495,17 @@ function Component:_setup()
 		TryDeconstructComponent(instance)
 	end
 
-	self[KEY_JANITOR]:Add(CollectionService:GetInstanceAddedSignal(self.Tag):Connect(InstanceTagged), "Disconnect")
+	self[KEY_JANITOR]:Add(CollectionService:GetInstanceAddedSignal(self.Tag):Connect(StartWatchingInstance), "Disconnect")
 	self[KEY_JANITOR]:Add(CollectionService:GetInstanceRemovedSignal(self.Tag):Connect(InstanceUntagged), "Disconnect")
 
-	for _, instance in ipairs(CollectionService:GetTagged(self.Tag)) do
-		task.defer(InstanceTagged, instance)
+	local tagged = CollectionService:GetTagged(self.Tag)
+	for _, instance in ipairs(tagged) do
+		task.defer(StartWatchingInstance, instance)
 	end
 end
 
 --[=[
+	@tag Component Class
 	@return {Component}
 	Gets a table array of all existing component objects. For example,
 	if there was a component class linked to the "MyComponent" tag,
@@ -517,6 +528,61 @@ function Component:GetAll()
 end
 
 --[=[
+	@tag Component Class
+	@return Component?
+
+	Gets an instance of a component class from the given Roblox
+	instance. Returns `nil` if not found.
+
+	```lua
+	local MyComponent = require(somewhere.MyComponent)
+
+	local myComponentInstance = MyComponent:FromInstance(workspace.SomeInstance)
+	```
+]=]
+function Component:FromInstance(instance: Instance)
+	return self[KEY_INST_TO_COMPONENTS][instance]
+end
+
+--[=[
+	@tag Component Class
+	@return Promise<ComponentInstance>
+
+	Resolves a promise once the component instance is present on a given
+	Roblox instance.
+
+	An optional `timeout` can be provided to reject the promise if it
+	takes more than `timeout` seconds to resolve. If no timeout is
+	supplied, `timeout` defaults to 60 seconds.
+
+	```lua
+	local MyComponent = require(somewhere.MyComponent)
+
+	MyComponent:WaitForInstance(workspace.SomeInstance):andThen(function(myComponentInstance)
+		-- Do something with the component class
+	end)
+	```
+]=]
+function Component:WaitForInstance(instance: Instance, timeout: number?)
+	local componentInstance = self:FromInstance(instance)
+	if componentInstance then
+		return Promise.Resolve(componentInstance)
+	end
+
+	return Promise.FromEvent(self.Started, function(c)
+		local match = c.Instance == instance
+		if match then
+			componentInstance = c
+		end
+
+		return match
+	end):Then(function()
+		return componentInstance
+	end):Timeout(if type(timeout) == "number" then timeout else DEFAULT_TIMEOUT)
+end
+
+--[=[
+	@tag Component Class
 	`Construct` is called before the component is started, and should be used
 	to construct the component instance.
 
@@ -532,6 +598,7 @@ end
 function Component:Construct() end
 
 --[=[
+	@tag Component Class
 	`Start` is called when the component is started. At this point in time, it
 	is safe to grab other components also bound to the same instance.
 
@@ -548,6 +615,7 @@ function Component:Construct() end
 function Component:Start() end
 
 --[=[
+	@tag Component Class
 	`Stop` is called when the component is stopped. This occurs either when the
 	bound instance is removed from one of the whitelisted ancestors _or_ when
 	the matching tag is removed from the instance. This also means that the
@@ -567,6 +635,7 @@ function Component:Start() end
 function Component:Stop() end
 
 --[=[
+	@tag Component Instance
 	@param componentClass ComponentClass
 	@return Component?
 
@@ -587,6 +656,7 @@ function Component:GetComponent(componentClass)
 end
 
 --[=[
+	@tag Component Class
 	@function HeartbeatUpdate
 	@param dt number
 	@within Component
@@ -607,6 +677,7 @@ end
 	```
 ]=]
 --[=[
+	@tag Component Class
 	@function SteppedUpdate
 	@param dt number
 	@within Component
@@ -627,6 +698,7 @@ end
 	```
 ]=]
 --[=[
+	@tag Component Class
 	@function RenderSteppedUpdate
 	@param dt number
 	@within Component
